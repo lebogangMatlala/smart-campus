@@ -13,7 +13,9 @@ import enrollmentRoutes from "./routes/enrollmentRoutes.js";
 
 dotenv.config();
 const app = express();
-
+app.get("/api/hello", (req, res) => {
+  res.json({ message: "Hello from Vercel backend!" });
+});
 // Middleware
 app.use(express.json());
 //app.use(bodyParser.json());

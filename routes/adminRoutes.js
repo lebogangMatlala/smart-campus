@@ -5,6 +5,6 @@ import { authenticate, authorizeRoles } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
-router.get("/summary", , authenticate, authorizeRoles("Admin"), getAdminSummary);
+router.get("/summary", authenticate, authorizeRoles("Admin"), getAdminSummary);
 
 export default router;

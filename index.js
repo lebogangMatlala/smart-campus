@@ -9,11 +9,13 @@ import authRoutes from "./routes/authRoutes.js";
  import timetableRoutes from "./routes/timetableRoutes.js";
 import issueRoutes from "./routes/issueRoutes.js";
 import enrollmentRoutes from "./routes/enrollmentRoutes.js";
-// import adminRoutes from "./routes/adminRoutes.js";
+import announcementRoutes from "./routes/announcementRoutes.js";
+import adminRoutes from "./routes/adminRoutes.js";
 
 dotenv.config();
+
 const app = express();
-app.get("/api/hello", (req, res) => {
+app.get("/", (req, res) => {
   res.json({ message: "Hello from Vercel backend!" });
 });
 // Middleware
@@ -44,9 +46,13 @@ app.use("/api/auth/courses", courseRoutes);
 app.use("/api/auth/timetable", timetableRoutes);
 app.use("/api/auth/issues", issueRoutes);
 app.use("/api/auth/enrollment", enrollmentRoutes);
-// app.use("/api/auth/admin", adminRoutes);
+app.use("/api/auth/announcements", announcementRoutes);
+app.use("/api/auth/admin", adminRoutes);
 
 
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+
+export default app;

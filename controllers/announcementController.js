@@ -5,16 +5,27 @@ import User from '../models/User.js';
 // Create a new announcement
 export const createAnnouncement = async (req, res) => {
   try {
+    console.log('Received body:', req.body);
+    if (!req.body) {
+      return res.status(400).json({ success: false, message: "Missing request body" });
+    }
+
     const { title, message, target_role } = req.body;
-    const created_by = req.user.id; // assuming you attach user in middleware
+    const created_by = req.user.id || req.user.userId;
+
+    if (!title || !message) {
+      return res.status(400).json({ success: false, message: "Title and message are required" });
+    }
 
     const announcement = new Announcement({ title, message, target_role, created_by });
     await announcement.save();
+
     res.status(201).json({ success: true, announcement });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
 };
+
 
 // Get all announcements
 export const getAllAnnouncements = async (req, res) => {
@@ -45,6 +56,24 @@ export const deleteAnnouncement = async (req, res) => {
 
     await announcement.deleteOne();
     res.status(200).json({ success: true, message: 'Announcement deleted' });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+// Update announcement (Admin only)
+export const updateAnnouncement = async (req, res) => {
+  try {
+    const { title, message, target_role } = req.body;
+    const announcement = await Announcement.findById(req.params.id);
+    if (!announcement) return res.status(404).json({ success: false, message: 'Not found' });
+
+    announcement.title = title || announcement.title;
+    announcement.message = message || announcement.message;
+    announcement.target_role = target_role || announcement.target_role;
+
+    await announcement.save();
+    res.status(200).json({ success: true, announcement });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }

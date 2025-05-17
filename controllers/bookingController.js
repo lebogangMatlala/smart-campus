@@ -4,80 +4,62 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-// Initialize OAuth2 client
-const oauth2Client = new google.auth.OAuth2(
-  process.env.GOOGLE_CLIENT_ID,
-  process.env.GOOGLE_CLIENT_SECRET,
-  process.env.GOOGLE_REDIRECT_URI
-);
 
-const calendar = google.calendar({ version: "v3", auth: oauth2Client });
-
-// Create a booking and add it to Google Calendar
-// Create a booking
 export const createBooking = async (req, res) => {
-    const { userId, room, startTime, endTime, appointmentType } = req.body;
-  
-    // Ensure that appointmentType is valid
-    if (!['room', 'one-on-one'].includes(appointmentType)) {
-      return res.status(400).json({ error: "Invalid appointment type" });
-    }
-  
-    try {
-      let newBooking;
-  
-      if (appointmentType === 'room') {
-        // Room booking
-        if (!room) {
-          return res.status(400).json({ error: "Room is required for room bookings" });
-        }
-        newBooking = await Booking.create({
-          userId,
-          room,
-          appointmentType,
-          startTime,
-          endTime
-        });
-      } else {
-        // One-on-one appointment
-        newBooking = await Booking.create({
-          userId,
-          appointmentType,
-          startTime,
-          endTime
-        });
+  const { userId, room, startTime, endTime, appointmentType } = req.body;
+
+  // Validate appointment type
+  if (!['room', 'one-on-one'].includes(appointmentType)) {
+    return res.status(400).json({ error: "Invalid appointment type" });
+  }
+
+  try {
+    let newBooking;
+
+    if (appointmentType === 'room') {
+      if (!room) {
+        return res.status(400).json({ error: "Room is required for room bookings" });
       }
-  
-      // Create event in Google Calendar
-    //   const event = {
-    //     summary: appointmentType === 'room' ? `Booking for ${room}` : `One-on-one Appointment`,
-    //     description: appointmentType === 'room' ? `Booking for ${room}` : `One-on-one Appointment with User ${userId}`,
-    //     start: {
-    //       dateTime: startTime,
-    //       timeZone: "Africa/Johannesburg",
-    //     },
-    //     end: {
-    //       dateTime: endTime,
-    //       timeZone: "Africa/Johannesburg",
-    //     },
-    //   };
-  
-    //   const calendarEvent = await calendar.events.insert({
-    //     calendarId: "primary", // or specify a different calendar ID
-    //     resource: event,
-    //   });
-  
-      // Store the Google Calendar Event ID in the database
-      //newBooking.googleEventId = calendarEvent.data.id;
-      await newBooking.save();
-  
-      res.status(201).json(newBooking);
-    } catch (error) {
-      console.error("Error creating booking:", error);
-      res.status(500).json({ error: "Failed to create booking" });
+
+      // ❗ Check for conflicts with existing bookings
+      const conflict = await Booking.findOne({
+        room,
+        startTime: { $lt: new Date(endTime) },
+        endTime: { $gt: new Date(startTime) }
+      });
+
+      if (conflict) {
+        return res.status(409).json({ error: "Room already booked for this time slot" });
+      }
+
+      // No conflict, create booking
+      newBooking = new Booking({
+        userId,
+        room,
+        appointmentType,
+        startTime,
+        endTime
+      });
+
+    } else {
+      // One-on-one appointment (you may add conflict check here too if needed)
+      newBooking = new Booking({
+        userId,
+        appointmentType,
+        startTime,
+        endTime
+      });
     }
-  };
-  
+
+    await newBooking.save();
+    res.status(201).json(newBooking);
+
+  } catch (error) {
+    console.error("Error creating booking:", error);
+    res.status(500).json({ error: "Failed to create booking" });
+  }
+};
+
 // Get a booking by ID
 export const getBooking = async (req, res) => {
   const { id } = req.params;
@@ -113,26 +95,6 @@ export const updateBooking = async (req, res) => {
     booking.endTime = endTime || booking.endTime;
     booking.status = status || booking.status;
 
-    // Update Google Calendar event
-    // const updatedEvent = {
-    //   summary: `Updated Booking for ${room || booking.room}`,
-    //   description: `Updated booking for ${room || booking.room}`,
-    //   start: {
-    //     dateTime: startTime || booking.startTime,
-    //     timeZone: "Africa/Johannesburg",
-    //   },
-    //   end: {
-    //     dateTime: endTime || booking.endTime,
-    //     timeZone: "Africa/Johannesburg",
-    //   },
-    // };
-
-    // await calendar.events.update({
-    //   calendarId: "primary", // specify the correct calendar ID
-    //   eventId: booking.googleEventId,
-    //   resource: updatedEvent,
-    // });
-
     await booking.save();
     res.status(200).json(booking);
   } catch (error) {
@@ -151,12 +113,6 @@ export const deleteBooking = async (req, res) => {
       return res.status(404).json({ error: "Booking not found" });
     }
 
-    // Delete the Google Calendar event
-    // await calendar.events.delete({
-    //   calendarId: 'primary', // specify the correct calendar ID
-    //   eventId: booking.googleEventId,
-    // });
-
     // Delete the booking from DB
     await booking.remove();
 
@@ -166,3 +122,35 @@ export const deleteBooking = async (req, res) => {
     res.status(500).json({ error: "Failed to delete booking" });
   }
 };
+
+// Get all bookings
+export const getAllBookings = async (req, res) => {
+  try {
+    const bookings = await Booking.find();
+    res.status(200).json(bookings);
+  } catch (error) {
+    console.error("Error fetching bookings:", error);
+    res.status(500).json({ error: "Failed to fetch bookings" });
+  }
+};
+
+// Get bookings by user ID
+export const getBookingsByUserId = async (req, res) => {
+  const { userId } = req.params;
+
+  try {
+    const bookings = await Booking.find({ userId });
+    if (!bookings.length) {
+      return res.status(404).json({ error: "No bookings found for this user" });
+    }
+
+    res.status(200).json(bookings);
+  } catch (error) {
+    console.error("Error fetching bookings by user ID:", error);
+    res.status(500).json({ error: "Failed to fetch bookings" });
+  }
+};
+
+// Get bookings by room
+
+

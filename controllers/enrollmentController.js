@@ -44,3 +44,36 @@ export const getCourseEnrollments = async (req, res) => {
     res.status(500).json({ message: "Failed to fetch enrollments" });
   }
 };
+
+export const deleteEnrollment = async (req, res) => {
+  try {
+    const { enrollment_id } = req.params;
+    const enrollment = await Enrollment.findByIdAndDelete(enrollment_id);
+    if (!enrollment) return res.status(404).json({ message: "Enrollment not found" });
+    res.status(200).json({ message: "Enrollment deleted" });
+  } catch (err) {
+    res.status(500).json({ message: "Failed to delete enrollment" });
+  }
+};
+
+export const updateEnrollment = async (req, res) => {
+  try {
+    const { enrollment_id } = req.params;
+    const { courseId, studentId } = req.body;
+    const enrollment = await Enrollment.findByIdAndUpdate(enrollment_id, { courseId, studentId }, { new: true });
+    if (!enrollment) return res.status(404).json({ message: "Enrollment not found" });
+    res.status(200).json(enrollment);
+  } catch (err) {
+    res.status(500).json({ message: "Failed to update enrollment" });
+  }
+};
+
+export const getAllEnrollments = async (req, res) => {
+  try {
+    const enrollments = await Enrollment.find().populate("studentId").populate("courseId");
+    res.status(200).json(enrollments);
+  } catch (err) {
+    res.status(500).json({ message: "Failed to fetch enrollments" });
+  }
+};
+
